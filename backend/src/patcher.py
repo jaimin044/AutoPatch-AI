@@ -100,6 +100,9 @@ def apply_patch(
                     "success": True,
                     "message": f"Patch applied successfully with {strategy_name}.",
                 }
+            
+            # Rollback any partial/failed changes before trying the next strategy
+            rollback_changes(repo_path, cancel_event, timeout)
 
         # All strategies failed
         last_stderr = result["stderr"] if result else "unknown error"

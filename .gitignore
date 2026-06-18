@@ -1,2 +1,10 @@
-
-backend/.env
+venv/
+node_modules/
+__pycache__/
+.env
+*.pyc
+dist/
+.DS_Store
+phantom_state.db*
+.phantom/
+benchmark_results/

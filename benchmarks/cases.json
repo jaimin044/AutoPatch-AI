@@ -1,0 +1,47 @@
+[
+  {
+    "id": "case-01-divide-by-zero",
+    "name": "Divide By Zero",
+    "repo_url": "LOCAL",
+    "local_path": "benchmarks/repos/case_01_divide_by_zero",
+    "issue_text": "The divide function crashes with ZeroDivisionError when dividing by zero instead of raising a ValueError with a helpful message.",
+    "expected_behavior": "divide(10, 0) should raise ValueError('Cannot divide by zero')",
+    "test_command": "pytest tests/test_math_utils.py -v"
+  },
+  {
+    "id": "case-02-slugify-spaces",
+    "name": "Slugify Spaces",
+    "repo_url": "LOCAL",
+    "local_path": "benchmarks/repos/case_02_slugify_spaces",
+    "issue_text": "The slugify function converts multiple consecutive spaces into multiple hyphens instead of a single hyphen. For example, 'hello   world' becomes 'hello---world' instead of 'hello-world'.",
+    "expected_behavior": "slugify('hello   world') should return 'hello-world'",
+    "test_command": "pytest tests/test_string_utils.py -v"
+  },
+  {
+    "id": "case-03-average-empty-list",
+    "name": "Average Empty List",
+    "repo_url": "LOCAL",
+    "local_path": "benchmarks/repos/case_03_average_empty_list",
+    "issue_text": "The average function crashes with ZeroDivisionError when passed an empty list instead of raising a ValueError with a helpful message.",
+    "expected_behavior": "average([]) should raise ValueError('Cannot average empty list')",
+    "test_command": "pytest tests/test_stats.py -v"
+  },
+  {
+    "id": "case-04-date-parser-empty",
+    "name": "Date Parser Empty Input",
+    "repo_url": "LOCAL",
+    "local_path": "benchmarks/repos/case_04_date_parser_empty",
+    "issue_text": "The parse_date function crashes with an IndexError when given an empty string instead of raising a ValueError with a helpful message.",
+    "expected_behavior": "parse_date('') should raise ValueError('Date cannot be empty')",
+    "test_command": "pytest tests/test_date_utils.py -v"
+  },
+  {
+    "id": "case-05-discount-negative",
+    "name": "Discount Calculation",
+    "repo_url": "LOCAL",
+    "local_path": "benchmarks/repos/case_05_discount_negative",
+    "issue_text": "The apply_discount function accepts negative discount percentages, which incorrectly increases the price instead of rejecting the input.",
+    "expected_behavior": "apply_discount(100, -10) should raise ValueError('Discount cannot be negative')",
+    "test_command": "pytest tests/test_pricing.py -v"
+  }
+]

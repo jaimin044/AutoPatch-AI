@@ -20,7 +20,9 @@ class Sandbox:
     network_name: str
     repo_path: str
 
-def host_user_or_none() -> str:
+from typing import Optional
+
+def host_user_or_none() -> Optional[str]:
     if platform.system() != "Windows" and hasattr(os, "getuid"):
         return f"{os.getuid()}:{os.getgid()}"
     return None
@@ -39,12 +41,18 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
     job_dir.mkdir(parents=True, exist_ok=True)
     
     # 2. Clone repo
+    if cancel_event.is_set():
+        raise RuntimeError("Job cancelled")
+        
     clone_cmd = ["git", "clone", repo_url, str(repo_dir)]
     res = run_cancellable_subprocess(clone_cmd, settings.clone_timeout, cancel_event)
     if res["returncode"] != 0:
         raise RuntimeError(f"Clone failed: {res['stderr']}")
         
     # 3. Network
+    if cancel_event.is_set():
+        raise RuntimeError("Job cancelled")
+        
     network_name = f"phantom-net-{job_id}"
     try:
         network = client.networks.create(network_name, driver="bridge")
@@ -52,6 +60,9 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
         raise RuntimeError(f"Network creation failed: {e}")
 
     # 4. Start container
+    if cancel_event.is_set():
+        raise RuntimeError("Job cancelled")
+        
     try:
         container = client.containers.run(
             "python:3.11-slim",
@@ -68,8 +79,7 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
                 str(repo_dir): {"bind": "/workspace", "mode": "rw"}
             },
             working_dir="/workspace",
-            name=f"phantom-sandbox-{job_id}",
-            remove=True
+            name=f"phantom-sandbox-{job_id}"
         )
     except Exception as e:
         # Cleanup network if container fails
@@ -98,6 +108,9 @@ def install_dependencies(sandbox: Sandbox, cancel_event: threading.Event):
         
     if not install_cmd:
         return
+        
+    if cancel_event.is_set():
+        raise RuntimeError("Job cancelled")
         
     cmd = [
         "docker", "exec", "--user", "root", sandbox.container_id,
@@ -140,20 +153,28 @@ def cleanup_sandbox(job_id: str):
     container_name = f"phantom-sandbox-{job_id}"
     network_name = f"phantom-net-{job_id}"
     
-    # 1. & 2. Kill and Stop container (remove=True in run handles rm)
+    # 1. Kill inner container processes
     try:
         container = client.containers.get(container_name)
-        container.kill() # Explicitly kill inner processes immediately
+        container.kill()
     except Exception:
         pass
         
+    # 2. Stop container
     try:
         container = client.containers.get(container_name)
         container.stop(timeout=1)
     except Exception:
         pass
+    
+    # 3. Remove container explicitly
+    try:
+        container = client.containers.get(container_name)
+        container.remove(force=True)
+    except Exception:
+        pass
         
-    # Wait briefly for Docker to process container rm
+    # Wait briefly for Docker to release endpoints
     time.sleep(1)
         
     # 4. & 5. Remove network with retry

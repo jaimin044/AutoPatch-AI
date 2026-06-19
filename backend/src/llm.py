@@ -60,32 +60,22 @@ def _call_llm(prompt: str) -> str:
 
 # ─── Prompts ───────────────────────────────────────────────────────────
 
-ANALYZE_ISSUE_PROMPT = """You are an expert debugging assistant analyzing a bug report for a Python repository.
+ANALYZE_ISSUE_PROMPT = """You are a debugging assistant analyzing a bug report for a Python repository.
 
 Repository summary:
 {repo_summary}
 
-Bug report / Issue:
+Bug report:
 {issue_text}
 
-Your task: Analyze this issue and predict:
-1. The test command to reproduce the bug (usually `pytest` or a specific test file)
-2. The likely target file that contains the bug
-3. A brief analysis of what the bug might be
+Analyze this issue. Predict the test command and the SOURCE file (not the test file) that contains the bug.
 
-Return ONLY valid JSON with no markdown, no commentary, no explanation outside the JSON.
+Return ONLY valid JSON. No markdown. No commentary.
 
-Return between these markers:
-<PHANTOM_JSON>
-{{
-  "test_command": "pytest tests/test_example.py",
-  "target_file": "src/example.py",
-  "analysis": "Brief description of the suspected bug"
-}}
-</PHANTOM_JSON>
+{{"test_command": "pytest tests/test_example.py", "target_file": "example.py", "analysis": "brief description"}}
 """
 
-GENERATE_PATCH_PROMPT = """You are an expert Python developer fixing a bug.
+GENERATE_PATCH_PROMPT = """You are a Python developer fixing a bug.
 
 Bug report:
 {issue_text}
@@ -93,64 +83,33 @@ Bug report:
 Failing test output:
 {failing_output}
 
-Retrieved source files:
+Source files:
 {retrieved_context}
 
 {retry_context}
 
-Your task: Generate a MINIMAL unified diff patch to fix this bug.
+IMPORTANT RULES:
+1. Fix the SOURCE code file, NOT the test file. Tests describe the EXPECTED behavior.
+2. The test expects certain behavior — modify the source code to match what the test expects.
+3. Return the COMPLETE fixed file contents as JSON.
 
-Rules:
-- Generate a standard unified diff (like `git diff` output)
-- Paths must be relative to the repository root
-- Paths must EXACTLY match one of the retrieved file paths above
-- Make the MINIMAL change needed to fix the bug
-- Do NOT add unnecessary imports or changes
-- Do NOT include markdown fences
-- Do NOT include explanation outside the JSON
-
-Return ONLY valid JSON:
-
-<PHANTOM_JSON>
-{{
-  "target_file": "path/to/file.py",
-  "unified_diff": "--- a/path/to/file.py\\n+++ b/path/to/file.py\\n@@ -line,count +line,count @@\\n context\\n-old line\\n+new line\\n context"
-}}
-</PHANTOM_JSON>
+Return ONLY this JSON (no markdown, no explanation):
+{{"target_file": "source_file.py", "complete_file_contents": "entire fixed file content here"}}
 """
 
-GENERATE_REPLACEMENT_PROMPT = """You are an expert Python developer fixing a bug.
+GENERATE_REPLACEMENT_PROMPT = """You are a Python developer. Fix this file:
 
 Bug report:
 {issue_text}
 
-Failing test output:
-{failing_output}
-
-The file that needs to be fixed:
-File: {target_file}
+File to fix: {target_file}
 Current contents:
-```python
 {target_code}
-```
 
-The diff-based patch failed to apply. Generate the COMPLETE corrected file contents instead.
+Fix the bug with minimal changes. Return the COMPLETE corrected file.
 
-Rules:
-- Return the ENTIRE file contents, not just the changed part
-- Fix the bug with minimal changes
-- Keep all existing code that doesn't need changing
-- Do NOT include markdown fences in the file contents
-- Do NOT include explanation outside the JSON
-
-Return ONLY valid JSON:
-
-<PHANTOM_JSON>
-{{
-  "target_file": "{target_file}",
-  "complete_file_contents": "...entire corrected file here..."
-}}
-</PHANTOM_JSON>
+Return ONLY this JSON (no markdown, no explanation):
+{{"target_file": "{target_file}", "complete_file_contents": "entire corrected file here"}}
 """
 
 
@@ -179,16 +138,17 @@ def generate_patch(
     previous_error: str = "",
 ) -> dict:
     """
-    Generates a unified diff patch for the bug.
+    Generates a fix for the bug. With small models, requests full-file
+    replacement directly instead of unified diffs (more reliable).
     
     Returns:
-        dict with keys: target_file, unified_diff
+        dict with keys: target_file, complete_file_contents (or unified_diff)
     """
     retry_context = ""
     if attempt > 1 and previous_error:
         retry_context = (
             f"IMPORTANT: This is attempt {attempt}. "
-            f"Previous patch failed with error:\n{previous_error}\n"
+            f"Previous fix failed with error:\n{previous_error}\n"
             f"Generate a DIFFERENT fix this time."
         )
 

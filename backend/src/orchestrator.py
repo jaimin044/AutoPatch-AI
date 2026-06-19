@@ -184,23 +184,30 @@ def generate_patch(state: AgentState, config: RunnableConfig):
         )
         target_file = patch_result.get("target_file", "")
         unified_diff = patch_result.get("unified_diff", "")
+        complete_file_contents = patch_result.get("complete_file_contents", "")
 
         logs = [
             f"LLM generated patch (attempt {attempt})",
             f"Target file: {target_file}",
-            f"Diff preview: {unified_diff[:150]}...",
         ]
+        
+        if complete_file_contents:
+            logs.append(f"Generated full file replacement ({len(complete_file_contents)} chars)")
+        elif unified_diff:
+            logs.append(f"Diff preview: {unified_diff[:150]}...")
 
         return {
             "attempt": attempt,
             "target_file": target_file,
             "proposed_patch": unified_diff,
+            "replacement_code": complete_file_contents,
             "logs": logs,
         }
     except Exception as e:
         return {
             "attempt": attempt,
             "proposed_patch": "",
+            "replacement_code": "",
             "logs": [f"Patch generation failed (attempt {attempt}): {e}"],
         }
 
@@ -226,17 +233,22 @@ def validate(state: AgentState, config: RunnableConfig):
 
     # 2. Try to apply the patch
     proposed_patch = state.get("proposed_patch", "")
+    replacement_code = state.get("replacement_code", "")
     target_file = state.get("target_file", "")
     patch_applied = False
 
-    if proposed_patch:
+    if replacement_code and target_file:
+        repl_result = apply_full_replacement(repo_path, target_file, replacement_code)
+        logs.append(f"Replacement apply: {repl_result['message']}")
+        patch_applied = repl_result["success"]
+    elif proposed_patch:
         patch_result = apply_patch(repo_path, proposed_patch, cancel_event)
         logs.append(f"Patch apply: {patch_result['message']}")
         patch_applied = patch_result["success"]
 
-    # 3. If patch failed, try full-file replacement
+    # 3. If patch failed, try full-file replacement fallback
     if not patch_applied and target_file:
-        logs.append("Patch apply failed, trying full-file replacement...")
+        logs.append("Patch apply failed, trying fallback full-file replacement generation...")
         try:
             replacement = generate_replacement(
                 issue_text=state["issue_text"],
@@ -249,7 +261,7 @@ def validate(state: AgentState, config: RunnableConfig):
             repl_code = replacement.get("complete_file_contents", "")
             if repl_code:
                 repl_result = apply_full_replacement(repo_path, repl_file, repl_code)
-                logs.append(f"Replacement: {repl_result['message']}")
+                logs.append(f"Fallback Replacement: {repl_result['message']}")
                 patch_applied = repl_result["success"]
         except Exception as e:
             logs.append(f"Replacement generation failed: {e}")

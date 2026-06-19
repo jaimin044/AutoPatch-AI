@@ -88,7 +88,9 @@ def extract_json(raw: str) -> dict:
     )
 
 
-def _aggressive_extract(raw: str) -> dict | None:
+from typing import Optional
+
+def _aggressive_extract(raw: str) -> Optional[dict]:
     """
     Last-resort extraction for badly formatted JSON from small models.
     Tries to extract target_file and unified_diff/complete_file_contents

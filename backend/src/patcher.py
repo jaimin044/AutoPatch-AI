@@ -163,6 +163,53 @@ def apply_full_replacement(
         return {"success": False, "message": f"Failed to write file: {e}"}
 
 
+def apply_search_replace(
+    repo_path: str,
+    target_file: str,
+    search_text: str,
+    replace_text: str,
+) -> dict:
+    """
+    Search-and-replace patching fallback.
+    Finds exact search_text in the file and replaces it with replace_text.
+    """
+    try:
+        full_path = validate_path(repo_path, target_file)
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
+
+    if not os.path.exists(full_path):
+        return {"success": False, "message": f"File does not exist: {target_file}"}
+
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        if search_text not in content:
+            # Fallback: ignore trailing/leading whitespace mismatches
+            if search_text.strip() in content:
+                content = content.replace(search_text.strip(), replace_text.strip())
+            else:
+                return {
+                    "success": False, 
+                    "message": "Search block not found in target file."
+                }
+        else:
+            content = content.replace(search_text, replace_text)
+
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return {
+            "success": True,
+            "message": f"Search-and-replace applied to {target_file}.",
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Failed to perform search/replace: {e}"}
+
+
+
+
 def rollback_changes(repo_path: str, cancel_event: threading.Event, timeout: int = 15) -> dict:
     """
     Rolls back any uncommitted changes in the repo using git checkout.

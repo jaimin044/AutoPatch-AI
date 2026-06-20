@@ -68,8 +68,7 @@ async def job_events(job_id: str, request: Request):
         try:
             while True:
                 if await request.is_disconnected():
-                    print(f"Browser disconnected for job {job_id}. Cancelling.")
-                    job_manager.cancel_job(job_id)
+                    print(f"Browser disconnected for job {job_id}. Stopping SSE stream, but leaving job running.")
                     break
 
                 try:
@@ -101,8 +100,7 @@ async def job_events(job_id: str, request: Request):
                         break
                     continue
         except asyncio.CancelledError:
-            print(f"Browser disconnect detected via CancelledError for job {job_id}. Cancelling.")
-            job_manager.cancel_job(job_id)
+            print(f"Browser disconnect detected via CancelledError for job {job_id}. Not cancelling job.")
             raise
         except Exception as e:
             print(f"Error in SSE stream for job {job_id}: {e}")

@@ -20,6 +20,8 @@ class AgentState(TypedDict):
     baseline_error: str
 
     proposed_patch: str
+    search_block: str
+    replace_block: str
     replacement_file: str
     replacement_code: str
 

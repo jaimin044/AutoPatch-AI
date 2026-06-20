@@ -86,6 +86,7 @@ class JobManager:
                     
                     if "logs" in state_update:
                         for log in state_update["logs"]:
+                            job.logs.append(log)
                             job.queue.put({"event": "log", "data": log})
                     
                     if "retrieved_files" in state_update:

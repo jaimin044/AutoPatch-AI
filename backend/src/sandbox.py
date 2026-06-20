@@ -69,7 +69,6 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
             command="tail -f /dev/null",  # Keep alive
             detach=True,
             network=network_name,
-            dns=[settings.docker_dns_1, settings.docker_dns_2],
             mem_limit=settings.sandbox_memory,
             nano_cpus=int(settings.sandbox_cpus * 1e9),
             pids_limit=settings.sandbox_pids,
@@ -118,7 +117,20 @@ def install_dependencies(sandbox: Sandbox, cancel_event: threading.Event):
     ]
     res = run_cancellable_subprocess(cmd, settings.install_timeout, cancel_event)
     if res["returncode"] != 0:
-        raise RuntimeError(f"Install failed: {res['stderr']}")
+        print(f"Warning: Install failed: {res['stderr']}")
+        # We deliberately do not raise an exception here so that repos with 
+        # broken pyproject.toml files can still be patched!
+
+    # Always ensure pytest is available for validation
+    pytest_cmd = [
+        "docker", "exec", "--user", "root", sandbox.container_id,
+        "bash", "-c", "pip install pytest"
+    ]
+    pytest_res = run_cancellable_subprocess(pytest_cmd, 30, cancel_event)
+    if pytest_res["returncode"] != 0:
+        print(f"Warning: Pytest install failed: {pytest_res['stderr']}")
+    else:
+        print(f"Pytest installed successfully")
 
 def disable_network(sandbox: Sandbox):
     try:

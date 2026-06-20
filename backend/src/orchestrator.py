@@ -7,6 +7,7 @@ Graph: ingest -> setup_sandbox -> index_repo -> reproduce -> retrieve_context
 
 import os
 import threading
+import difflib
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables.config import RunnableConfig
@@ -65,6 +66,40 @@ def setup_sandbox_node(state: AgentState, config: RunnableConfig):
     }
 
 
+def _resolve_test_command(test_command: str, repo_index: list[str]) -> str:
+    """Fix hallucinated file paths inside the test command using fuzzy matching."""
+    if not test_command or not repo_index:
+        return test_command
+        
+    parts = test_command.split()
+    resolved_parts = []
+    
+    for part in parts:
+        # If it looks like a file path (contains '/' or ends with common extensions)
+        if "/" in part or part.endswith((".py", ".js", ".ts", ".go", ".java", ".cpp", ".c", ".rs")):
+            clean_part = part.strip("'\"")
+            if clean_part in repo_index:
+                resolved_parts.append(part)
+                continue
+                
+            target_basename = os.path.basename(clean_part)
+            # Try basename match first
+            matches = [f for f in repo_index if os.path.basename(f) == target_basename]
+            if matches:
+                resolved_parts.append(part.replace(clean_part, matches[0]))
+            else:
+                # Fallback to fuzzy match
+                fuzzy = difflib.get_close_matches(clean_part, repo_index, n=1, cutoff=0.5)
+                if fuzzy:
+                    resolved_parts.append(part.replace(clean_part, fuzzy[0]))
+                else:
+                    resolved_parts.append(part)
+        else:
+            resolved_parts.append(part)
+            
+    return " ".join(resolved_parts)
+
+
 # ─── Node: index_repo ─────────────────────────────────────────────────
 
 def index_repo(state: AgentState, config: RunnableConfig):
@@ -78,10 +113,13 @@ def index_repo(state: AgentState, config: RunnableConfig):
 
     # Use LLM to analyze issue and predict test command
     repo_summary = get_repo_summary(index)
+    repo_paths = [f["path"] for f in index]
+    
     try:
         analysis = analyze_issue(state["issue_text"], repo_summary)
-        test_command = analysis.get("test_command", "pytest")
+        test_command = _resolve_test_command(analysis.get("test_command", "pytest"), repo_paths)
         target_file = analysis.get("target_file", "")
+        # Resolve target_file via similar logic if needed
         logs = [
             f"Indexed {len(index)} files",
             f"LLM analysis: {analysis.get('analysis', 'N/A')}",
@@ -183,30 +221,49 @@ def generate_patch(state: AgentState, config: RunnableConfig):
             previous_error=previous_error,
         )
         target_file = patch_result.get("target_file", "")
-        unified_diff = patch_result.get("unified_diff", "")
-        complete_file_contents = patch_result.get("complete_file_contents", "")
+        
+        # Resolve LLM path hallucinations against actual retrieved files
+        retrieved_files = state.get("retrieved_files", [])
+        if target_file and target_file not in retrieved_files and retrieved_files:
+            target_basename = os.path.basename(target_file)
+            # Try basename match first
+            matches = [f for f in retrieved_files if os.path.basename(f) == target_basename]
+            if matches:
+                target_file = matches[0]
+            else:
+                # Fallback to fuzzy match
+                fuzzy = difflib.get_close_matches(target_file, retrieved_files, n=1, cutoff=0.3)
+                if fuzzy:
+                    target_file = fuzzy[0]
+
+        search_block = patch_result.get("search_block", "")
+        replace_block = patch_result.get("replace_block", "")
 
         logs = [
             f"LLM generated patch (attempt {attempt})",
             f"Target file: {target_file}",
         ]
         
-        if complete_file_contents:
-            logs.append(f"Generated full file replacement ({len(complete_file_contents)} chars)")
-        elif unified_diff:
-            logs.append(f"Diff preview: {unified_diff[:150]}...")
+        if search_block and replace_block:
+            logs.append(f"Generated search and replace block ({len(replace_block)} chars)")
+        elif patch_result.get("complete_file_contents"):
+            # Fallback legacy support just in case
+            logs.append("Generated full file replacement (legacy format)")
+            replace_block = patch_result.get("complete_file_contents")
 
         return {
             "attempt": attempt,
             "target_file": target_file,
-            "proposed_patch": unified_diff,
-            "replacement_code": complete_file_contents,
+            "search_block": search_block,
+            "replace_block": replace_block,
+            "replacement_code": replace_block,
             "logs": logs,
         }
     except Exception as e:
         return {
             "attempt": attempt,
-            "proposed_patch": "",
+            "search_block": "",
+            "replace_block": "",
             "replacement_code": "",
             "logs": [f"Patch generation failed (attempt {attempt}): {e}"],
         }
@@ -232,23 +289,24 @@ def validate(state: AgentState, config: RunnableConfig):
     logs.append(f"Rollback: {rollback_result['message']}")
 
     # 2. Try to apply the patch
-    proposed_patch = state.get("proposed_patch", "")
-    replacement_code = state.get("replacement_code", "")
+    search_block = state.get("search_block", "")
+    replace_block = state.get("replace_block", "")
     target_file = state.get("target_file", "")
     patch_applied = False
 
-    if replacement_code and target_file:
-        repl_result = apply_full_replacement(repo_path, target_file, replacement_code)
+    if search_block and replace_block and target_file:
+        from .patcher import apply_search_replace
+        repl_result = apply_search_replace(repo_path, target_file, search_block, replace_block)
         logs.append(f"Replacement apply: {repl_result['message']}")
         patch_applied = repl_result["success"]
-    elif proposed_patch:
-        patch_result = apply_patch(repo_path, proposed_patch, cancel_event)
-        logs.append(f"Patch apply: {patch_result['message']}")
-        patch_applied = patch_result["success"]
+    elif replace_block and target_file:
+        repl_result = apply_full_replacement(repo_path, target_file, replace_block)
+        logs.append(f"Replacement apply: {repl_result['message']}")
+        patch_applied = repl_result["success"]
 
-    # 3. If patch failed, try full-file replacement fallback
+    # 3. If patch failed, try fallback generation
     if not patch_applied and target_file:
-        logs.append("Patch apply failed, trying fallback full-file replacement generation...")
+        logs.append("Patch apply failed, trying fallback generation...")
         try:
             replacement = generate_replacement(
                 issue_text=state["issue_text"],
@@ -258,11 +316,16 @@ def validate(state: AgentState, config: RunnableConfig):
                 target_code=_read_target_file(repo_path, target_file),
             )
             repl_file = replacement.get("target_file", target_file)
-            repl_code = replacement.get("complete_file_contents", "")
-            if repl_code:
-                repl_result = apply_full_replacement(repo_path, repl_file, repl_code)
+            search_b = replacement.get("search_block", "")
+            replace_b = replacement.get("replace_block", "")
+            
+            if search_b and replace_b:
+                from .patcher import apply_search_replace
+                repl_result = apply_search_replace(repo_path, repl_file, search_b, replace_b)
                 logs.append(f"Fallback Replacement: {repl_result['message']}")
                 patch_applied = repl_result["success"]
+                if patch_applied:
+                    state["replacement_code"] = replace_b  # Update local state for return
         except Exception as e:
             logs.append(f"Replacement generation failed: {e}")
 
@@ -287,6 +350,7 @@ def validate(state: AgentState, config: RunnableConfig):
     return {
         "validation_passed": passed,
         "validation_error": combined_output if not passed else "",
+        "replacement_code": state.get("replacement_code", ""),
         "logs": logs,
     }
 
@@ -304,9 +368,23 @@ def _read_target_file(repo_path: str, target_file: str) -> str:
 # ─── Node: success ─────────────────────────────────────────────────────
 
 def success(state: AgentState, config: RunnableConfig):
+    repo_path = state.get("repo_path")
+    logs = ["✓ Job completed successfully — bug fixed!"]
+    
+    if repo_path:
+        try:
+            import subprocess
+            res = subprocess.run(["git", "diff"], cwd=repo_path, capture_output=True, text=True, timeout=10)
+            if res.stdout:
+                logs.append("--- PROPOSED SOLUTION DIFF ---")
+                for line in res.stdout.splitlines():
+                    logs.append(line)
+        except Exception as e:
+            logs.append(f"Could not generate diff: {e}")
+
     return {
         "status": "success",
-        "logs": ["✓ Job completed successfully — bug fixed!"],
+        "logs": logs,
     }
 
 

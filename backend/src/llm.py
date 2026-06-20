@@ -91,10 +91,10 @@ Source files:
 IMPORTANT RULES:
 1. Fix the SOURCE code file, NOT the test file. Tests describe the EXPECTED behavior.
 2. The test expects certain behavior — modify the source code to match what the test expects.
-3. Return the COMPLETE fixed file contents as JSON.
+3. Return a search and replace block to apply the fix.
 
 Return ONLY this JSON (no markdown, no explanation):
-{{"target_file": "source_file.py", "complete_file_contents": "entire fixed file content here"}}
+{{"target_file": "source_file.py", "search_block": "exact lines to replace", "replace_block": "the fixed lines"}}
 """
 
 GENERATE_REPLACEMENT_PROMPT = """You are a Python developer. Fix this file:
@@ -106,10 +106,10 @@ File to fix: {target_file}
 Current contents:
 {target_code}
 
-Fix the bug with minimal changes. Return the COMPLETE corrected file.
+Fix the bug. Return a search and replace block containing exactly the code that needs to change.
 
 Return ONLY this JSON (no markdown, no explanation):
-{{"target_file": "{target_file}", "complete_file_contents": "entire corrected file here"}}
+{{"target_file": "{target_file}", "search_block": "exact lines to replace", "replace_block": "the fixed lines"}}
 """
 
 

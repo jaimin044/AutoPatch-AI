@@ -12,7 +12,7 @@ import { Cursor } from './components/Cursor';
 
 function App() {
   const [jobId, setJobId] = useState(null);
-  const [status, setStatus] = useState('pending');
+  const [status, setStatus] = useState('idle');
   const [logs, setLogs] = useState([]);
   const [retrievedFiles, setRetrievedFiles] = useState([]);
   const [patchCode, setPatchCode] = useState('');
@@ -84,6 +84,7 @@ function App() {
   const handleCancel = async () => {
     if (!jobId) return;
     try {
+      setLogs(prev => [...prev, '[System] Execution aborted by user.']);
       await cancelJob(jobId);
     } catch (err) {
       console.error("Failed to cancel job", err);
@@ -158,7 +159,7 @@ function App() {
           className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0"
         >
           {/* Left Column: Controls + Benchmark */}
-          <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col space-y-8 overflow-y-auto pr-2 pb-4" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col space-y-8 pr-2 pb-4">
             <JobForm onSubmit={handleStart} disabled={isRunning} />
             <SafetyPanel onCancel={handleCancel} isRunning={isRunning} />
             <BenchmarkPanel />

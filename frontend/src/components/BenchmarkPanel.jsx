@@ -28,7 +28,7 @@ export function BenchmarkPanel() {
   // Compute summary metrics
   const cases = benchmarkData?.cases || [];
   const totalCases = cases.length;
-  const solved = cases.filter(c => c.status === 'solved' || c.passed).length;
+  const solved = cases.filter(c => c.status === 'solved' || c.status === 'success' || c.passed).length;
   const successRate = totalCases > 0 ? ((solved / totalCases) * 100).toFixed(0) : '—';
   const avgAttempts = totalCases > 0
     ? (cases.reduce((sum, c) => sum + (c.attempts || 0), 0) / totalCases).toFixed(1)
@@ -90,7 +90,7 @@ export function BenchmarkPanel() {
             {/* Individual Cases */}
             <div className="space-y-2">
               {cases.map((c, i) => {
-                const isSolved = c.status === 'solved' || c.passed;
+                const isSolved = c.status === 'solved' || c.status === 'success' || c.passed;
                 return (
                   <div key={i} className="flex items-center justify-between bg-white/[0.02] rounded-lg px-3 py-2 border border-white/[0.05]">
                     <div className="flex items-center min-w-0">

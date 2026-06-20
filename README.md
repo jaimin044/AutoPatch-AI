@@ -46,7 +46,7 @@ AutoPatch AI is evaluated against a custom **Micro-SWE-bench** harness—a curat
 | :--- | :--- | :--- |
 | **Total Benchmark Cases** | 5 | Curated repositories covering distinct logic faults. |
 | **Resolution Rate** | **100%** (5/5) | Evaluated via deterministic `pytest` exit codes (0). |
-| **Avg. Time to Resolution** | **~42 seconds** | From ingestion to final validated patch. |
+| **Avg. Time to Resolution** | **~205 seconds** | From ingestion to final validated patch. |
 | **Avg. Attempts Required** | **1.0** | First-shot success driven by high-fidelity Search/Replace prompting. |
 
 #### 2. Sandbox Security Constraints (Zero-Trust Validation)

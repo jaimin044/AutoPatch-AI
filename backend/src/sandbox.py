@@ -53,7 +53,7 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
     if cancel_event.is_set():
         raise RuntimeError("Job cancelled")
         
-    network_name = f"phantom-net-{job_id}"
+    network_name = f"autopatch-net-{job_id}"
     try:
         network = client.networks.create(network_name, driver="bridge")
     except docker.errors.APIError as e:
@@ -79,7 +79,7 @@ def create_sandbox(job_id: str, repo_url: str, cancel_event: threading.Event) ->
                 str(repo_dir): {"bind": "/workspace", "mode": "rw"}
             },
             working_dir="/workspace",
-            name=f"phantom-sandbox-{job_id}"
+            name=f"autopatch-sandbox-{job_id}"
         )
     except Exception as e:
         # Cleanup network if container fails
@@ -150,8 +150,8 @@ def run_untrusted_command(sandbox: Sandbox, command: str, cancel_event: threadin
     return run_cancellable_subprocess(cmd, host_timeout, cancel_event)
 
 def cleanup_sandbox(job_id: str):
-    container_name = f"phantom-sandbox-{job_id}"
-    network_name = f"phantom-net-{job_id}"
+    container_name = f"autopatch-sandbox-{job_id}"
+    network_name = f"autopatch-net-{job_id}"
     
     # 1. Kill inner container processes
     try:

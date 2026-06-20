@@ -8,7 +8,8 @@ export function BenchmarkPanel() {
   const fetchBenchmarks = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/benchmarks');
+      const baseUrl = import.meta.env.PROD ? '' : 'http://localhost:8000';
+      const res = await fetch(`${baseUrl}/api/benchmarks`);
       if (res.ok) {
         const data = await res.json();
         setBenchmarkData(data);

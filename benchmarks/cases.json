@@ -21,27 +21,27 @@
     "id": "case-03-average-empty-list",
     "name": "Average Empty List",
     "repo_url": "LOCAL",
-    "local_path": "benchmarks/repos/case_03_average_empty_list",
-    "issue_text": "The average function crashes with ZeroDivisionError when passed an empty list instead of raising a ValueError with a helpful message.",
-    "expected_behavior": "average([]) should raise ValueError('Cannot average empty list')",
-    "test_command": "pytest tests/test_stats.py -v"
+    "local_path": "benchmarks/repos/case_03_average_empty",
+    "issue_text": "The calculate_average function crashes with ZeroDivisionError when passed an empty list instead of raising a ValueError with a helpful message.",
+    "expected_behavior": "calculate_average([]) should raise ValueError('Cannot average empty list')",
+    "test_command": "pytest test_stats.py -v"
   },
   {
     "id": "case-04-date-parser-empty",
     "name": "Date Parser Empty Input",
     "repo_url": "LOCAL",
-    "local_path": "benchmarks/repos/case_04_date_parser_empty",
-    "issue_text": "The parse_date function crashes with an IndexError when given an empty string instead of raising a ValueError with a helpful message.",
-    "expected_behavior": "parse_date('') should raise ValueError('Date cannot be empty')",
-    "test_command": "pytest tests/test_date_utils.py -v"
+    "local_path": "benchmarks/repos/case_04_date_parser",
+    "issue_text": "The parse_custom_date function crashes when given an empty string instead of raising a ValueError with a helpful message.",
+    "expected_behavior": "parse_custom_date('') should raise ValueError('Date cannot be empty')",
+    "test_command": "pytest test_parser.py -v"
   },
   {
     "id": "case-05-discount-negative",
     "name": "Discount Calculation",
     "repo_url": "LOCAL",
-    "local_path": "benchmarks/repos/case_05_discount_negative",
+    "local_path": "benchmarks/repos/case_05_discount_calc",
     "issue_text": "The apply_discount function accepts negative discount percentages, which incorrectly increases the price instead of rejecting the input.",
     "expected_behavior": "apply_discount(100, -10) should raise ValueError('Discount cannot be negative')",
-    "test_command": "pytest tests/test_pricing.py -v"
+    "test_command": "pytest test_checkout.py -v"
   }
 ]

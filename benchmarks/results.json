@@ -1,0 +1,64 @@
+{
+  "summary": {
+    "cases": 5,
+    "solved": 5,
+    "success_rate": 100.0,
+    "avg_attempts": 1.0,
+    "avg_runtime": 204.56,
+    "patch_failures": 0,
+    "replacement_fallbacks": 0,
+    "timeouts": 0
+  },
+  "cases": [
+    {
+      "id": "case-01-divide-by-zero",
+      "name": "Divide By Zero",
+      "status": "success",
+      "runtime_seconds": 348.25,
+      "attempts": 1,
+      "patch_failures": 0,
+      "replacement_fallbacks": 0,
+      "error": ""
+    },
+    {
+      "id": "case-02-slugify-spaces",
+      "name": "Slugify Spaces",
+      "status": "success",
+      "runtime_seconds": 188.86,
+      "attempts": 1,
+      "patch_failures": 0,
+      "replacement_fallbacks": 0,
+      "error": ""
+    },
+    {
+      "id": "case-03-average-empty-list",
+      "name": "Average Empty List",
+      "status": "success",
+      "runtime_seconds": 179.36,
+      "attempts": 1,
+      "patch_failures": 0,
+      "replacement_fallbacks": 0,
+      "error": ""
+    },
+    {
+      "id": "case-04-date-parser-empty",
+      "name": "Date Parser Empty Input",
+      "status": "success",
+      "runtime_seconds": 121.02,
+      "attempts": 1,
+      "patch_failures": 0,
+      "replacement_fallbacks": 0,
+      "error": ""
+    },
+    {
+      "id": "case-05-discount-negative",
+      "name": "Discount Calculation",
+      "status": "success",
+      "runtime_seconds": 185.31,
+      "attempts": 1,
+      "patch_failures": 0,
+      "replacement_fallbacks": 0,
+      "error": ""
+    }
+  ]
+}

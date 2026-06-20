@@ -1,6 +1,6 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
-const API_BASE = 'http://localhost:8000/api/jobs';
+const API_BASE = import.meta.env.PROD ? '/api/jobs' : 'http://localhost:8000/api/jobs';
 
 export async function startJob(repoUrl, issueText) {
   const res = await fetch(API_BASE, {

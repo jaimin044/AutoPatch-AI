@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     docker_dns_1: str = "1.1.1.1"
     docker_dns_2: str = "8.8.8.8"
 
-    sandbox_root: Path = Path.home() / ".phantom" / "sandboxes"
+    sandbox_root: Path = Path.home() / ".autopatch" / "sandboxes"
 
     class Config:
         env_file = ".env"

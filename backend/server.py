@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+import os
 from typing import Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,7 @@ import queue
 
 from src.jobs import job_manager
 
-app = FastAPI(title="PHANTOM Lite API")
+app = FastAPI(title="AutoPatch AI API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,6 +112,36 @@ async def job_events(job_id: str, request: Request):
             }
 
     return EventSourceResponse(event_generator())
+
+# Benchmark results endpoint
+BENCHMARK_RESULTS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "benchmarks", "results.json"))
+
+@app.get("/api/benchmarks")
+async def get_benchmarks():
+    if not os.path.exists(BENCHMARK_RESULTS_PATH):
+        return {"cases": []}
+    
+    try:
+        with open(BENCHMARK_RESULTS_PATH, "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        return {"cases": [], "error": str(e)}
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+if os.path.exists(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        path = os.path.join(frontend_dist, full_path)
+        if os.path.isfile(path):
+            return FileResponse(path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn
